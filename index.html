@@ -1,0 +1,1232 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#102b24">
+<meta name="description" content="CarbonVision — спутниковая аналитика лесных активов, оценка запасов углерода и экономика лесоклиматических проектов.">
+<title>CarbonVision — Леса России</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+:root{
+  --bg:#f4f6f2;--paper:#fff;--ink:#192b25;--muted:#7b8980;
+  --green:#174e3a;--lime:#c7ef9b;--line:#e5eae3;
+  --soft:#eaf1e7;--orange:#d99052;--red:#b4453a;--radius:19px;
+  --shadow:0 8px 32px rgba(25,48,35,.045);
+  --map-green:#52b788;--map-green-light:#95d5b2;--map-burn:#f0a868;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:14px;line-height:1.55
+}
+button,input,select{font:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
+  outline:3px solid #8ccf89;outline-offset:3px
+}
+.shell{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh}
+.sidebar{
+  position:sticky;top:0;height:100vh;background:#102b24;color:#f5f8f2;
+  padding:25px 17px;display:flex;flex-direction:column;z-index:5
+}
+.brand{display:flex;gap:11px;align-items:center;padding:0 8px 32px}
+.brand-logo{
+  width:41px;height:41px;border-radius:13px;object-fit:contain;
+  background:#c7ef9b; padding: 4px;
+}
+.brand strong{font-size:19px;letter-spacing:-.7px}
+.brand small{display:block;color:#9db5a6;font-size:10px;letter-spacing:1.5px;text-transform:uppercase}
+.nav-label{padding:10px 11px;color:#82998c;font-size:10px;letter-spacing:1.6px;text-transform:uppercase}
+.nav{display:grid;gap:5px}
+.nav a,.nav button{
+  border:0;background:transparent;color:#b9c8be;border-radius:11px;
+  padding:12px 13px;text-align:left;display:flex;align-items:center;gap:12px;
+  transition:.2s
+}
+.nav a:hover,.nav button:hover,.nav a.active{background:#214537;color:white}
+.nav a.active{font-weight: 600;}
+.nav-icon{width:19px;text-align:center;font-size:17px}
+.sidebar-bottom{margin-top:auto}
+.status{
+  padding:14px;border:1px solid #345346;background:#18392e;border-radius:14px;
+  margin:18px 3px
+}
+.status .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#b9e58d;margin-right:7px}
+.status small{display:block;color:#9eb5a6;margin-top:5px;font-size:11px}
+main{min-width:0;padding:0 36px 42px}
+.topbar{
+  min-height:76px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--line);gap:15px;flex-wrap:wrap;padding:10px 0
+}
+.breadcrumb{color:var(--muted);font-size:12px}
+.top-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pill,.button,.icon-button{
+  border:1px solid var(--line);background:white;border-radius:10px;padding:9px 13px;color:var(--ink)
+}
+.icon-button{width:38px;height:38px;display:grid;place-items:center;padding:0}
+.button-primary{background:var(--green);border-color:var(--green);color:white}
+.button-primary:hover{background:#226448}
+.button-light{background:#eff5e9;border-color:#e2ebd8;color:#244b37}
+.button:active,.icon-button:active{transform:scale(.98)}
+.badge-market{
+  display:inline-flex;align-items:center;gap:6px;
+  background:#fbf0e4;color:#a26d39;border:1px solid #f0dcc5;
+  border-radius:999px;padding:5px 11px;font-size:10px;font-weight:650;
+  letter-spacing:.3px;white-space:nowrap
+}
+.badge-market .dot{width:6px;height:6px;border-radius:50%;background:#d99052}
+.page-heading{
+  display:flex;justify-content:space-between;align-items:flex-end;gap:20px;
+  padding:31px 0 24px;flex-wrap:wrap
+}
+.eyebrow{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#63856d}
+h1{font-size:clamp(27px,3vw,38px);line-height:1.13;letter-spacing:-1.7px;margin:8px 0 9px;font-weight:650}
+h2{font-size:17px;letter-spacing:-.4px;margin:0;font-weight:650}
+h3{font-size:14px;margin:0;font-weight:650}
+.subheading{color:var(--muted);font-size:13px;margin:0}
+.heading-actions{display:flex;gap:9px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:19px}
+.card{background:var(--paper);border:1px solid #e8ece6;border-radius:var(--radius);box-shadow:var(--shadow)}
+.stat{padding:19px 19px 16px;min-width:0}
+.stat-top{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px;gap:8px}
+.stat-icon{width:31px;height:31px;display:grid;place-items:center;border-radius:10px;background:#edf4e8;font-size:16px}
+.stat-value{font-size:clamp(22px,2.5vw,30px);letter-spacing:-1.2px;font-weight:650;margin:15px 0 4px;line-height:1.2}
+.stat-foot{font-size:11px;color:var(--muted)}
+.stat-foot b{color:#487951;font-weight:600}
+.layout-main{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(285px,.85fr);gap:17px}
+.panel{padding:21px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:17px;flex-wrap:wrap}
+.panel-head p{color:var(--muted);font-size:12px;margin:5px 0 0}
+.small-select{border:1px solid var(--line);background:white;padding:8px 10px;border-radius:9px;font-size:11px;color:#3b4f44;max-width:155px}
+
+#map{
+  width:100%;
+  height:520px;
+  border-radius:14px;
+  overflow:hidden;
+  background:#eaf0e4;
+  position:relative;
+  z-index:1;
+}
+.leaflet-container{
+  font-family:Inter,-apple-system,sans-serif !important;
+  border-radius:14px;
+}
+.leaflet-popup-content-wrapper{
+  border-radius:12px;
+  box-shadow:0 10px 30px rgba(15,32,39,.25);
+  padding:0;
+}
+.leaflet-popup-content{
+  margin:0;
+  padding:14px;
+  font-size:12px;
+}
+.leaflet-popup-tip{background:#fff}
+.cv-popup-title{
+  display:flex;align-items:center;gap:8px;
+  padding-bottom:8px;margin-bottom:8px;
+  border-bottom:2px solid #52b788;
+}
+.cv-popup-title .icon{font-size:22px}
+.cv-popup-title .name{font-size:14px;font-weight:700;color:#192b25}
+.cv-popup-title .region{font-size:11px;color:#7b8980}
+.cv-popup-table{
+  width:100%;border-collapse:collapse;font-size:12px;color:#192b25;
+}
+.cv-popup-table td{padding:3px 0}
+.cv-popup-table td:first-child{color:#7b8980}
+.cv-popup-table td:last-child{text-align:right;font-weight:600}
+.cv-popup-note{
+  margin-top:8px;padding-top:6px;border-top:1px solid #e5eae3;
+  font-size:10px;color:#7b8980;line-height:1.45;
+}
+.cv-map-badge{
+  position:absolute;top:12px;right:12px;z-index:500;
+  background:rgba(8,28,21,.85);
+  border:1px solid rgba(82,183,136,.4);
+  color:#d8f3dc;
+  border-radius:8px;padding:5px 11px;
+  font-size:10.5px;letter-spacing:.4px;
+  backdrop-filter:blur(6px);
+  display:flex;align-items:center;gap:7px;
+  pointer-events:none;
+}
+.cv-map-badge .dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--map-green);box-shadow:0 0 8px var(--map-green);
+}
+.map-note{margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.map-note code{
+  background:#eff5e9;padding:1px 6px;border-radius:5px;
+  font-size:10px;color:#2d6a4f
+}
+
+.site-list{display:grid;gap:8px}
+.site{
+  display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  border:1px solid transparent;background:#fafbf9;padding:12px;border-radius:12px;
+  transition:.18s;color:var(--ink)
+}
+.site:hover{border-color:#cadcc2;background:#f5f8f1}
+.site.active{background:#edf5e7;border-color:#a8c89a}
+.site-symbol{width:37px;height:37px;border-radius:11px;background:#e4eedb;display:grid;place-items:center;font-size:18px;flex-shrink:0}
+.site-copy{min-width:0;flex:1}
+.site-copy strong{display:block;font-size:12px;font-weight:650}
+.site-copy small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.site-area{text-align:right;white-space:nowrap}
+.site-area strong{display:block;font-size:12px}
+.site-area small{font-size:10px;color:var(--muted)}
+.panel-foot{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11px;color:var(--muted)}
+.section{margin-top:19px}
+.grid-bottom{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(270px,.8fr);gap:17px}
+.segment{display:flex;gap:3px;background:#f0f3ee;padding:3px;border-radius:10px}
+.segment button{border:0;background:transparent;padding:7px 10px;font-size:11px;color:var(--muted);border-radius:8px}
+.segment button.active{background:white;color:var(--green);box-shadow:0 1px 4px #dfe5dc}
+.chart-wrap{height:225px;position:relative}
+canvas{display:block;width:100%;height:100%}
+.chart-foot{display:flex;gap:16px;color:var(--muted);font-size:11px;margin-top:7px;flex-wrap:wrap}
+.chart-key{display:flex;align-items:center;gap:6px}
+.key-line{width:18px;height:3px;border-radius:4px;background:#286448}
+.key-line.gray{background:#b3c2af}
+.calc{background:#123c2d;color:white;border:0;overflow:hidden;position:relative}
+.calc:after{content:"";position:absolute;width:230px;height:230px;border:1px solid #39624d;border-radius:50%;right:-110px;top:135px;box-shadow:0 0 0 24px #183f30,0 0 0 49px #173b2f;opacity:.7;pointer-events:none}
+.calc .muted{color:#a9c2b0}
+.calc h2{font-size:18px}
+.calc-field{margin-top:17px;position:relative;z-index:1}
+.calc-label{display:flex;justify-content:space-between;align-items:center;color:#c6d8ca;font-size:11px;margin-bottom:8px;gap:8px}
+.calc-label output{color:#e6f5d7;font-weight:650}
+.calc input[type=range]{width:100%;accent-color:#c7ef9b;cursor:pointer}
+.calc-number{display:flex;align-items:center;gap:9px}
+.calc-number input{width:100%;min-width:0;border:1px solid #456454;border-radius:9px;padding:9px 10px;background:#1a4936;color:white}
+.calc-number span{color:#bfd2c2;font-size:11px;white-space:nowrap}
+.calc-result{margin-top:23px;border-top:1px solid #41614e;padding-top:17px;position:relative;z-index:1}
+.calc-result small{color:#b4cdb8}
+.calc-result .big{font-size:34px;font-weight:650;letter-spacing:-1.5px;line-height:1.25;margin:6px 0}
+.calc-breakdown{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.calc-mini{background:#1a4635;border:1px solid #315945;border-radius:11px;padding:11px}
+.calc-mini small{font-size:10px;display:block}
+.calc-mini strong{font-size:15px;display:block;margin-top:3px}
+.disclaimer{font-size:10px;line-height:1.6;color:#b2c7b7;margin:14px 0 0;position:relative;z-index:1}
+.disclaimer strong{color:#ffd9c9}
+.calc-scenario{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#1a4936;padding:4px;border-radius:10px;position:relative;z-index:1}
+.calc-scenario button{border:0;background:transparent;color:#bfd2c2;padding:8px 10px;border-radius:8px;font-size:11px;text-align:left}
+.calc-scenario button.active{background:#c7ef9b;color:#123c2d;font-weight:650}
+.calc-scenario button small{display:block;font-size:9px;opacity:.75;margin-top:2px;font-weight:400}
+.payback-block{margin-top:18px;background:#0d2f23;border:1px solid #315945;border-radius:12px;padding:14px;position:relative;z-index:1}
+.payback-block .pb-title{font-size:11px;color:#b4cdb8;letter-spacing:.4px;text-transform:uppercase;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.payback-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:11px;padding:6px 0;border-bottom:1px solid #23483a}
+.payback-row:last-child{border-bottom:0}
+.payback-row span{color:#b4cdb8}
+.payback-row strong{color:#e6f5d7;font-size:12px;font-weight:650;text-align:right}
+.verdict{margin-top:12px;padding:12px;border-radius:10px;font-size:12px;font-weight:650;display:flex;align-items:center;gap:10px}
+.verdict.bad{background:#3a1f1a;border:1px solid #6b3028;color:#ffb7a6}
+.verdict.good{background:#1c4a35;border:1px solid #2f7a4f;color:#c9f0b7}
+.verdict .v-icon{font-size:18px;flex-shrink:0}
+.verdict small{display:block;font-weight:400;font-size:10px;opacity:.85;margin-top:2px;line-height:1.4}
+.threshold{margin-top:12px;padding:11px;background:#1a4635;border:1px dashed #3d6b52;border-radius:10px;font-size:10.5px;line-height:1.55;color:#d3e6d6}
+.threshold strong{color:#e6f5d7}
+.threshold .hint{color:#a9c2b0;display:block;margin-top:4px;font-size:10px}
+.gap-scale{margin-top:10px;display:flex;justify-content:space-between;font-size:9px;color:#7fa18a;gap:6px}
+.gap-bar{height:6px;border-radius:4px;background:linear-gradient(90deg,#c7ef9b 0%,#e8d17a 35%,#d99052 65%,#b4453a 100%);margin-top:4px;position:relative;overflow:hidden}
+.gap-bar .marker{position:absolute;top:-2px;bottom:-2px;width:2px;background:#fff;border-radius:1px;transform:translateX(-50%)}
+.reestr-note{font-size:10px;color:#9ebca8;margin-top:10px;line-height:1.55;position:relative;z-index:1}
+
+.section-title{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin:31px 0 14px;flex-wrap:wrap}
+.section-title p{font-size:12px;color:var(--muted);margin:4px 0 0}
+.project-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.project-card{padding:17px;transition:.2s}
+.project-card:hover{transform:translateY(-2px);box-shadow:0 12px 35px #213c2410}
+.project-top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.tag{font-size:10px;padding:5px 8px;border-radius:7px;background:#eff4e9;color:#54734d}
+.tag.orange{background:#fbf0e4;color:#a26d39}
+.tag.red{background:#fbe9e6;color:#a13a30}
+.project-card h3{margin:14px 0 5px;font-size:14px}
+.project-card p{font-size:11px;color:var(--muted);margin:0}
+.project-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;border-top:1px solid var(--line);margin-top:15px;padding-top:13px}
+.project-metrics small{font-size:10px;color:var(--muted);display:block}
+.project-metrics strong{font-size:14px;display:block;margin-top:3px}
+.project-link{border:0;background:transparent;color:var(--green);font-size:11px;font-weight:650;padding:13px 0 0}
+.bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:17px;margin-top:19px}
+.table-scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:11px}
+th{text-align:left;color:var(--muted);font-weight:500;font-size:10px;background:#f8faf7}
+th,td{padding:12px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td strong{font-weight:650}
+.source-list{display:grid;gap:13px}
+.source-row{display:flex;gap:11px;align-items:flex-start}
+.source-icon{width:34px;height:34px;display:grid;place-items:center;background:#edf4e8;border-radius:10px;flex-shrink:0}
+.source-row strong{display:block;font-size:12px}
+.source-row p{margin:3px 0 0;color:var(--muted);font-size:11px;line-height:1.55}
+
+.contacts-section{margin-top:34px}
+.contact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+.contact-card{display:flex;gap:14px;align-items:flex-start;padding:18px;background:white;border:1px solid #e8ece6;border-radius:16px;box-shadow:var(--shadow);transition:.2s}
+.contact-card:hover{border-color:#cadcc2;transform:translateY(-2px)}
+.contact-avatar{width:46px;height:46px;border-radius:14px;background:#e4eedb;display:grid;place-items:center;font-size:14px;flex-shrink:0;font-weight:700;color:#2c5340;letter-spacing:.5px}
+.contact-avatar.dev{background:#fbf0e4;color:#a26d39}
+.contact-body{min-width:0;flex:1}
+.contact-body strong{display:block;font-size:14px;margin-bottom:2px}
+.contact-body .role{font-size:11px;color:var(--muted);margin-bottom:9px;line-height:1.5}
+.contact-body a.mail{
+  display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#174e3a;
+  font-weight:600;background:#eff5e9;border:1px solid #e2ebd8;padding:7px 11px;
+  border-radius:9px;transition:.15s;word-break:break-all
+}
+.contact-body a.mail:hover{background:#dcefce;border-color:#b9d6a7}
+.contact-body a.mail svg{flex-shrink:0}
+
+.footer{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:21px;margin-top:34px;color:var(--muted);font-size:11px}
+.footer a{color:#42664d}
+.modal-backdrop{position:fixed;inset:0;background:#102b2488;backdrop-filter:blur(4px);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-backdrop.open{display:flex}
+.modal{background:white;border-radius:20px;max-width:620px;width:100%;padding:25px;box-shadow:0 25px 90px #102b2433;max-height:90vh;overflow:auto}
+.modal-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.modal h2{font-size:22px;margin:15px 0 8px}
+.modal p{color:var(--muted);font-size:13px}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.modal-item{padding:13px;background:#f4f7f1;border-radius:11px}
+.modal-item small{display:block;color:var(--muted);font-size:10px}
+.modal-item strong{display:block;font-size:16px;margin-top:4px}
+.modal-item strong.demo{font-size:13px;line-height:1.4}
+.cost-table{width:100%;font-size:11px;margin-top:14px}
+.cost-table th,.cost-table td{padding:8px 8px;white-space:normal;vertical-align:top}
+.cost-table th{background:#f4f7f1}
+.cost-table td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.cost-total td{background:#eff5e9;font-weight:650;border-top:2px solid #c9dcc0}
+.cost-note{font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5}
+.toast{position:fixed;bottom:24px;left:24px;max-width:calc(100% - 48px);padding:13px 17px;border-radius:12px;background:#173d2d;color:white;box-shadow:var(--shadow);z-index:3000;display:none;font-size:12px}
+.toast.show{display:block;animation:fadein .2s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.mobile-menu{display:none}
+
+@media(min-width:1500px){main{padding-left:48px;padding-right:48px}#map{height:580px}}
+@media(max-width:1150px){
+ .shell{grid-template-columns:205px minmax(0,1fr)}
+ main{padding:0 22px 35px}
+ .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .layout-main{grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr)}
+ #map{height:460px}
+ .project-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:800px){
+ .shell{display:block}
+ .sidebar{position:fixed;left:-260px;width:240px;transition:left .25s;box-shadow:10px 0 40px #102b2420}
+ .sidebar.open{left:0}
+ .mobile-menu{display:grid}
+ main{padding:0 16px 28px}
+ .topbar{padding:12px 0}
+ .page-heading{align-items:flex-start;flex-direction:column;padding-top:25px}
+ .heading-actions{width:100%}
+ .layout-main,.grid-bottom,.bottom-grid,.contact-grid{grid-template-columns:1fr}
+ #map{height:420px}
+ .project-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:480px){
+ .stats{gap:9px}
+ .stat{padding:13px}
+ .stat-top{font-size:10px}
+ .stat-value{font-size:23px}
+ .stat-icon{width:27px;height:27px}
+ .panel{padding:15px}
+ #map{height:360px}
+ .project-grid{grid-template-columns:1fr}
+ .top-actions .pill{display:none}
+ .top-actions .badge-market{display:none}
+ .calc .big{font-size:30px}
+ .calc-breakdown{grid-template-columns:1fr}
+ .contact-card{flex-direction:column;align-items:flex-start}
+}
+@media(prefers-reduced-motion:reduce){
+ *,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="sidebar" id="sidebar">
+  <a class="brand" href="#home">
+    <img src="img.png" alt="CarbonVision Logo" class="brand-logo" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'">
+    <div class="brand-mark" style="display:none; width:41px;height:41px;border-radius:13px;background:#c7ef9b;color:#173b2d;place-items:center;font-size:23px;">♧</div>
+    <div><strong>CarbonVision</strong><small>Earth intelligence</small></div>
+  </a>
+  <div class="nav-label">Рабочее пространство</div>
+  <nav class="nav">
+    <a class="active" href="#home"><span class="nav-icon">⌂</span>Обзор</a>
+    <a href="#map-section"><span class="nav-icon">⌖</span>Карта участков</a>
+    <a href="#analytics"><span class="nav-icon">⌁</span>Аналитика</a>
+    <a href="#calculator"><span class="nav-icon">₽</span>Экономика проекта</a>
+    <a href="#projects"><span class="nav-icon">♧</span>Лесные активы</a>
+  </nav>
+  <div class="nav-label" style="margin-top:20px">Информация</div>
+  <nav class="nav">
+    <a href="#methodology"><span class="nav-icon">◉</span>Методология</a>
+    <a href="#contacts"><span class="nav-icon">↗</span>Связаться с нами</a>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="status">
+      <span class="dot"></span><strong style="font-size:11px">Аналитическая среда</strong>
+      <small>Демонстрационные данные<br>Без подключения к реестру</small>
+    </div>
+  </div>
+</aside>
+
+<main id="home">
+<header class="topbar">
+  <div style="display:flex;align-items:center;gap:12px">
+    <button class="icon-button mobile-menu" id="menuBtn" aria-label="Открыть меню">☰</button>
+    <div class="breadcrumb">CarbonVision <span style="padding:0 7px">/</span> <span style="color:var(--ink)">Обзор</span></div>
+  </div>
+  <div class="top-actions">
+    <span class="badge-market" title="По данным статьи: 3,5% выпущенных единиц — лесоклиматические"><span class="dot"></span>Лесоклиматические: 3,5% рынка</span>
+    <a class="pill" style="font-size:11px" href="https://carbonvision-ntdvuslndbmto6mez4atcz.streamlit.app/" target="_blank" rel="noopener" title="Открыть Streamlit-приложение">🚀 Streamlit</a>
+    <a class="pill" style="font-size:11px" href="https://ksenianadbitova.github.io/CarbonVision/" target="_blank" rel="noopener" title="GitHub Pages и исходный код">📦 GitHub</a>
+    <span class="pill" style="font-size:11px">🇷🇺 Россия</span>
+    <button class="icon-button" id="helpBtn" aria-label="Информация о проекте">?</button>
+    <button class="button button-primary" id="exportBtn">↗ Экспорт отчёта</button>
+  </div>
+</header>
+
+<section class="page-heading">
+  <div>
+    <div class="eyebrow">Forest intelligence platform · 2026</div>
+    <h1>Леса, которые можно<br>измерить.</h1>
+    <p class="subheading">Спутниковая аналитика углеродных запасов и экономика лесных проектов.</p>
+  </div>
+  <div class="heading-actions">
+    <button class="button" id="resetBtn">↺ Сбросить</button>
+    <a class="button button-light" href="#map-section">⌖ Изучить участки</a>
+  </div>
+</section>
+
+<section class="stats" aria-label="Общая статистика">
+  <article class="card stat">
+    <div class="stat-top">Лесные участки <span class="stat-icon">♧</span></div>
+    <div class="stat-value" id="statCount">6</div>
+    <div class="stat-foot">Демонстрационная выборка</div>
+  </article>
+  <article class="card stat">
+    <div class="stat-top">Общая площадь <span class="stat-icon">⌗</span></div>
+    <div class="stat-value" id="statArea">11 080,53</div>
+    <div class="stat-foot">Гектаров в выборке</div>
+  </article>
+  <article class="card stat">
+    <div class="stat-top">Запас углерода <span class="stat-icon">◉</span></div>
+    <div class="stat-value" id="statCarbon">—</div>
+    <div class="stat-foot">Нужны согласованные данные биомассы</div>
+  </article>
+  <article class="card stat">
+    <div class="stat-top">Потенциал дохода <span class="stat-icon">↗</span></div>
+    <div class="stat-value" id="statIncome">—</div>
+    <div class="stat-foot">Сценарная оценка, не оферта</div>
+  </article>
+</section>
+
+<div class="layout-main" id="map-section">
+<section class="card panel">
+  <div class="panel-head">
+    <div>
+      <h2>География проектов</h2>
+      <p>Интерактивная карта · OpenStreetMap</p>
+    </div>
+    <select class="small-select" id="regionFilter" aria-label="Фильтр по региону">
+      <option value="all">Все регионы</option>
+      <option value="Архангельская область">Архангельская обл.</option>
+      <option value="Вологодская область">Вологодская обл.</option>
+      <option value="Республика Мордовия">Мордовия</option>
+      <option value="Красноярский край">Красноярский край</option>
+      <option value="Свердловская область">Свердловская обл.</option>
+    </select>
+  </div>
+
+  <div id="map">
+    <div class="cv-map-badge">
+      <span class="dot"></span>
+      <span>Leaflet · OpenStreetMap</span>
+    </div>
+  </div>
+
+  <div class="map-note">
+    <span>Тайлы <code>OpenStreetMap</code> · Leaflet.js с CDN · без API-ключа</span>
+    <span id="mapCount">6 участков</span>
+  </div>
+</section>
+
+<section class="card panel">
+  <div class="panel-head">
+    <div><h2>Каталог участков</h2><p>Выберите территорию для анализа</p></div>
+    <span class="tag" id="selectedCount">6 объектов</span>
+  </div>
+  <div class="site-list" id="siteList"></div>
+  <div class="panel-foot"><span>Площадь выборки</span><strong id="listArea">11 080,53 га</strong></div>
+</section>
+</div>
+
+<section class="section grid-bottom" id="analytics">
+  <article class="card panel">
+    <div class="panel-head">
+      <div><h2>Динамика запаса углерода</h2><p id="chartSubtitle">Выберите участок для просмотра сценария</p></div>
+      <div class="segment" id="periodSegment">
+        <button data-period="5" class="active">5 лет</button>
+        <button data-period="10">10 лет</button>
+        <button data-period="15">15 лет</button>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="carbonChart" aria-label="График сценарной динамики углеродного запаса"></canvas></div>
+    <div class="chart-foot">
+      <span class="chart-key"><span class="key-line"></span>Модельный сценарий</span>
+      <span class="chart-key"><span class="key-line gray"></span>Условная базовая линия</span>
+    </div>
+    <p style="font-size:10px;color:var(--muted);margin:13px 0 0">
+      Формулы: ΔC = ΔB × CF (CF = 0.47); ΔCO₂ = ΔC × 44/12. Данные синтетические — для демонстрации интерфейса.
+      Реальные значения строятся по ESA CCI Biomass v7.0 в Streamlit-приложении. Прогноз не является измеренным спутниковым рядом или подтверждённым поглощением.
+    </p>
+  </article>
+
+  <article class="card panel calc" id="calculator">
+    <div class="panel-head">
+      <div><h2>Калькулятор проекта</h2><p class="muted">Экономика на выбранном участке</p></div>
+      <span style="font-size:20px">↗</span>
+    </div>
+
+    <div class="calc-field">
+      <label class="calc-label"><span>Сценарий участка</span></label>
+      <div class="calc-scenario" id="scenarioSegment">
+        <button data-scenario="A" class="active">Сценарий А<small>чистый участок</small></button>
+        <button data-scenario="B">Сценарий Б<small>захламлённый</small></button>
+      </div>
+    </div>
+
+    <div class="calc-field">
+      <label class="calc-label" for="areaRange"><span>Площадь проекта</span><output id="areaOutput">1 750,47 га</output></label>
+      <input id="areaRange" type="range" min="1" max="10000" step="0.01" value="1750.47">
+    </div>
+    <div class="calc-field">
+      <label class="calc-label" for="years">Горизонт проекта</label>
+      <div class="segment" id="years" style="background:#1a4936">
+        <button data-years="5">5 лет</button>
+        <button data-years="10" class="active">10 лет</button>
+        <button data-years="15">15 лет</button>
+      </div>
+    </div>
+    <div class="calc-field">
+      <label class="calc-label" for="rateRange"><span>Цена одной единицы</span><output id="rateOutput">1 000 ₽</output></label>
+      <input id="rateRange" type="range" min="100" max="50000" step="100" value="1000">
+    </div>
+    <div class="calc-field">
+      <label class="calc-label" for="absorption">Модельное поглощение</label>
+      <div class="calc-number">
+        <input id="absorption" type="number" min="0" max="50" step="0.1" value="1.5" aria-label="Поглощение тонн CO2 на гектар в год">
+        <span>т CO₂/га/год</span>
+      </div>
+    </div>
+
+    <div class="calc-result">
+      <small>Валовая сценарная выручка (до затрат)</small>
+      <div class="big" id="revenue">—</div>
+      <small id="unitCount">Количество условных единиц: —</small>
+      <div class="calc-breakdown">
+        <div class="calc-mini"><small>После резерва 15%</small><strong id="netRevenue">—</strong></div>
+        <div class="calc-mini"><small>Расчётный объём</small><strong id="netUnits">—</strong></div>
+      </div>
+
+      <div class="payback-block">
+        <div class="pb-title"><span>Окупаемость проекта</span><span id="pbScenario" style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ebca8">сценарий А</span></div>
+        <div class="payback-row"><span>Затраты на 1 га (диапазон)</span><strong id="costPerHa">—</strong></div>
+        <div class="payback-row"><span>Полные затраты проекта</span><strong id="totalCost">—</strong></div>
+        <div class="payback-row"><span>Комиссия реестра</span><strong id="registryFee">—</strong></div>
+        <div class="payback-row"><span>Чистая выручка после комиссий</span><strong id="cleanRevenue">—</strong></div>
+        <div class="payback-row"><span>Покрытие затрат</span><strong id="coverage">—</strong></div>
+        <div class="verdict bad" id="verdict">
+          <span class="v-icon">⚠</span>
+          <span><span id="verdictText">НЕ ОКУПАЕТСЯ</span><small id="verdictSub">—</small></span>
+        </div>
+        <div class="threshold">
+          <strong>Пороговая цена для окупаемости:</strong> <span id="thresholdPrice">—</span>
+          <span class="hint" id="thresholdHint">—</span>
+          <div class="gap-bar" id="gapBar"><div class="marker" id="gapMarker" style="left:0%"></div></div>
+          <div class="gap-scale"><span>500 ₽</span><span>1 000 ₽</span><span>5 000 ₽</span><span>25 000 ₽</span></div>
+        </div>
+      </div>
+
+      <p class="reestr-note" id="reestrNote">
+        С 01.03.2027 — единый счёт резервирования (Постановление № 790).
+        Тарифы оператора реестра — Постановление № 518.
+      </p>
+
+      <p class="disclaimer">
+        <strong>⚠ Расчёт не является инвестиционным предложением.</strong>
+        По данным исследования (Нагайцева, Надбитова, 2026), при текущей рыночной цене 500–1 000 ₽/УЕ
+        лесоклиматический проект <b>не окупается ни за 5, ни за 10, ни за 15 лет</b>.
+        Для окупаемости за 15 лет цена должна составлять <b>4 500–6 500 ₽/УЕ</b> (чистый участок)
+        или <b>19 400–25 600 ₽/УЕ</b> (захламлённый). Разрыв — в 5–77 раз.
+      </p>
+    </div>
+  </article>
+</section>
+
+<section id="projects">
+  <div class="section-title">
+    <div><h2>Лесные активы</h2><p>Участки демонстрационной исследовательской выборки</p></div>
+    <select class="small-select" id="projectFilter" aria-label="Фильтр типа участка">
+      <option value="all">Все типы</option>
+      <option value="forest">Лесные территории</option>
+      <option value="burn">Нарушенные территории</option>
+    </select>
+  </div>
+  <div class="project-grid" id="projectGrid"></div>
+</section>
+
+<div class="bottom-grid">
+<section class="card panel">
+  <div class="panel-head"><div><h2>Паспорт выбранного участка</h2><p>Основные параметры модели</p></div><span class="tag" id="passportTag">Выбран</span></div>
+  <div class="table-scroll">
+    <table><tbody id="passportBody"></tbody></table>
+  </div>
+  <p style="font-size:10px;color:var(--muted);margin:12px 0 0;line-height:1.5">
+    Значения со статусом <b>«демо»</b> — иллюстративные, из методической части статьи (Netsvetov 2016; Рожков 2020; Horemans 2019).
+    Реальные спутниковые показатели — в Streamlit-приложении.
+  </p>
+</section>
+<section class="card panel" id="methodology">
+  <div class="panel-head"><div><h2>Методология и источники</h2><p>Что стоит за расчётами</p></div><span class="tag">Data notes</span></div>
+  <div class="source-list">
+    <div class="source-row"><div class="source-icon">🛰</div><div><strong>ESA CCI Biomass v7.0</strong><p>Глобальные данные о биомассе. Для достоверного сравнения нужны версия продукта, единицы измерения, пространственное разрешение и сопоставимые даты.</p></div></div>
+    <div class="source-row"><div class="source-icon">🌿</div><div><strong>Sentinel-2 L2A</strong><p>Оптические спутниковые наблюдения для оценки состояния и изменений растительного покрова.</p></div></div>
+    <div class="source-row"><div class="source-icon">🔥</div><div><strong>Hansen GFC и MODIS</strong><p>Данные о потерях древесного покрова и гарях могут использоваться как дополнительные индикаторы риска.</p></div></div>
+    <div class="source-row"><div class="source-icon">📐</div><div><strong>IPCC · метод разности запасов</strong><p>ΔC = ΔB × CF, CF = 0.47; ΔCO₂ = ΔC × 44/12. Применимость зависит от исходных данных и границ системы.</p></div></div>
+    <div class="source-row"><div class="source-icon">📊</div><div><strong>Экономика проекта</strong><p>Затраты по Таблице 4 статьи (Нагайцева, Надбитова, 2026): сценарий А — 245 400–353 200 ₽/га; сценарий Б — 1 045 400–1 383 200 ₽/га. Тарифы реестра — Постановление № 518.</p></div></div>
+  </div>
+</section>
+</div>
+
+<section class="contacts-section" id="contacts">
+  <div class="section-title" style="margin-top:0">
+    <div><h2>Связаться с нами</h2><p>Вопросы, баги, предложения — пишите напрямую</p></div>
+  </div>
+  <div class="contact-grid">
+    <div class="contact-card">
+      <div class="contact-avatar dev">КН</div>
+      <div class="contact-body">
+        <strong>Ксения Надбитова</strong>
+        <div class="role">Разработка сайта · Технологический колледж № 34, Москва</div>
+        <a class="mail" href="mailto:ksenianadbitova2008@yandex.ru">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+          ksenianadbitova2008@yandex.ru
+        </a>
+      </div>
+    </div>
+    <div class="contact-card">
+      <div class="contact-avatar">ВН</div>
+      <div class="contact-body">
+        <strong>Вероника Нагайцева</strong>
+        <div class="role">Менеджер проекта · аналитика и документация · ФГБОУ ВО «Херсонский технический университет»</div>
+        <a class="mail" href="mailto:veronikaabbc@mail.ru">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+          veronikaabbc@mail.ru
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div><strong style="color:var(--ink)">CarbonVision</strong> · Леса России · КосмоХакатон 2026</div>
+  <div>
+    <a href="https://ksenianadbitova.github.io/CarbonVision/" target="_blank" rel="noopener">GitHub Pages</a>
+    &nbsp;·&nbsp;
+    <a href="https://carbonvision-ntdvuslndbmto6mez4atcz.streamlit.app/" target="_blank" rel="noopener">Streamlit</a>
+  </div>
+  <div>Разработка: <a href="mailto:ksenianadbitova2008@yandex.ru">К. Надбитова</a> · Аналитика: <a href="mailto:veronikaabbc@mail.ru">В. Нагайцева</a></div>
+</footer>
+</main>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <div class="modal-head"><span class="eyebrow">CarbonVision / карточка участка</span><button class="icon-button" id="closeModal" aria-label="Закрыть">✕</button></div>
+    <h2 id="modalTitle">Лесной участок</h2>
+    <p id="modalDescription"></p>
+    <div class="modal-grid" id="modalGrid"></div>
+
+    <div id="costDetails" style="margin-top:18px">
+      <h3 style="margin-bottom:8px">Затраты на 1 га (Таблица 4 статьи)</h3>
+      <div class="table-scroll">
+        <table class="cost-table">
+          <thead>
+            <tr><th>Статья</th><th style="text-align:right">Сценарий А</th><th style="text-align:right">Сценарий Б</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Аренда участка</td><td class="num">500–3 000 ₽/год</td><td class="num">500–3 000 ₽/год</td></tr>
+            <tr><td>Обработка почвы</td><td class="num">4 000–25 000 ₽</td><td class="num">4 000–25 000 ₽</td></tr>
+            <tr><td>Посадочный материал</td><td class="num">63 000 ₽</td><td class="num">63 000 ₽</td></tr>
+            <tr><td>Посадка</td><td class="num">10 000–22 300 ₽</td><td class="num">10 000–22 300 ₽</td></tr>
+            <tr><td>Агроуход (3-2-1, 6 уходов)</td><td class="num">55 500–69 000 ₽</td><td class="num">55 500–69 000 ₽</td></tr>
+            <tr><td>Дополнение посадок</td><td class="num">9 000–60 000 ₽</td><td class="num">9 000–60 000 ₽</td></tr>
+            <tr><td>Контроль состояния</td><td class="num">40 000 ₽</td><td class="num">40 000 ₽</td></tr>
+            <tr><td>Противопожарные полосы</td><td class="num">26 900 ₽</td><td class="num">26 900 ₽</td></tr>
+            <tr><td>Итого без реестра</td><td class="num">208 400–316 200 ₽</td><td class="num">808 400–1 116 200 ₽</td></tr>
+            <tr><td>Реестр (37 000)</td><td class="num">+37 000 ₽</td><td class="num">+37 000 ₽</td></tr>
+            <tr class="cost-total"><td>Итого с реестром</td><td class="num">245 400–353 200 ₽</td><td class="num">845 400–1 153 200 ₽</td></tr>
+            <tr><td>Сплошная расчистка</td><td class="num">—</td><td class="num">800 000–1 030 000 ₽</td></tr>
+            <tr class="cost-total"><td>Итого со всеми затратами</td><td class="num">245 400–353 200 ₽</td><td class="num">1 045 400–1 383 200 ₽</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="cost-note">Источник: Таблица 4, Нагайцева В. В., Надбитова К., 2026. Тарифы реестра — Постановление Правительства РФ № 518.</p>
+    </div>
+
+    <p style="font-size:11px">Все приведённые здесь значения площади и сценарных параметров предназначены для демонстрации интерфейса. Перед инвестиционными решениями необходимы проверка данных и независимая верификация.</p>
+    <button class="button button-primary" id="modalSelect" style="width:100%;margin-top:10px">Выбрать для расчёта</button>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+const sites=[
+ {id:"ark",name:"Северная тайга",region:"Архангельская область",area:1750.47,icon:"🌲",type:"forest",stand:"conifer",absorption:1.5,lat:64.54,lon:40.54,status:"Лесной массив",note:"Северные бореальные леса"},
+ {id:"vol",name:"Вологодские леса",region:"Вологодская область",area:1617.71,icon:"🌳",type:"forest",stand:"mixed",absorption:2.4,lat:59.22,lon:39.89,status:"Лесной массив",note:"Смешанные лесные территории"},
+ {id:"mor1",name:"Мордовский гарь №1",region:"Республика Мордовия",area:1829.60,icon:"🔥",type:"burn",stand:"burn",absorption:0,lat:54.18,lon:44.83,status:"Нарушенная территория",note:"Требуется оценка восстановления"},
+ {id:"mor2",name:"Мордовский гарь №2",region:"Республика Мордовия",area:1832.75,icon:"🔥",type:"burn",stand:"burn",absorption:0,lat:54.08,lon:45.18,status:"Нарушенная территория",note:"Требуется оценка восстановления"},
+ {id:"sib",name:"Сибирская тайга",region:"Красноярский край",area:2100.00,icon:"🌲",type:"forest",stand:"conifer",absorption:1.5,lat:58.01,lon:92.87,status:"Лесной массив",note:"Сибирские бореальные леса"},
+ {id:"ural",name:"Уральские леса",region:"Свердловская область",area:1950.00,icon:"⛰️",type:"forest",stand:"mixed",absorption:2.4,lat:56.84,lon:60.61,status:"Лесной массив",note:"Лесные территории Урала"}
+];
+
+const COSTS={
+  A:{min:245400,max:353200,label:"чистый участок"},
+  B:{min:1045400,max:1383200,label:"захламлённый участок"}
+};
+
+const THRESHOLD={
+  A:{5:[13600,19600],10:[6800,9800],15:[4500,6500]},
+  B:{5:[58000,76800],10:[29000,38400],15:[19400,25600]}
+};
+
+function registryFeePerUnit(units){
+  if(units<10000) return {deposit:10,transfer:5,offset:1};
+  if(units<500000) return {deposit:20,transfer:5,offset:1};
+  if(units<3000000) return {deposit:18,transfer:5,offset:1};
+  return {deposit:16,transfer:5,offset:1};
+}
+
+const $=id=>document.getElementById(id);
+const fmt=(n,d=0)=>Number(n).toLocaleString("ru-RU",{minimumFractionDigits:d,maximumFractionDigits:d});
+const money=n=>fmt(n)+" ₽";
+let selectedId="ark",years=10,period=5,scenario="A";
+let lastToastTimer;
+let mapInstance=null;
+const markers={};
+
+function selected(){return sites.find(s=>s.id===selectedId)||sites[0]}
+function visibleSites(){
+ const region=$("regionFilter").value;
+ return sites.filter(s=>(region==="all"||s.region===region));
+}
+function showToast(message){
+ const el=$("toast");el.textContent=message;el.classList.add("show");
+ clearTimeout(lastToastTimer);
+ lastToastTimer=setTimeout(()=>el.classList.remove("show"),3200);
+}
+
+function popupHtml(s){
+  const color = s.type==="burn" ? "#f0a868" : "#52b788";
+  const icon  = s.type==="burn" ? "🔥" : "🌲";
+  const status = s.type==="burn" ? "Нарушенная территория" : "Лесной массив";
+  return `
+    <div class="cv-popup-title" style="border-bottom-color:${color};">
+      <span class="icon">${icon}</span>
+      <div>
+        <div class="name">${s.name}</div>
+        <div class="region">${s.region}</div>
+      </div>
+    </div>
+    <table class="cv-popup-table">
+      <tr><td>Площадь</td><td>${fmt(s.area,2)} га</td></tr>
+      <tr><td>Поглощение (демо)</td><td>${fmt(s.absorption,2)} т CO₂/га/год</td></tr>
+      <tr><td>Тип</td><td>${status}</td></tr>
+      <tr><td>Координаты</td><td>${s.lat.toFixed(2)}° N · ${s.lon.toFixed(2)}° E</td></tr>
+      <tr><td>УЕ за 10 лет (демо)</td><td>${fmt(s.absorption*10,0)} УЕ/га</td></tr>
+    </table>
+    <div class="cv-popup-note">${s.note}. Данные демонстрационные.</div>
+  `;
+}
+
+function initMap(){
+  if(mapInstance) return mapInstance;
+
+  mapInstance = L.map('map', {
+    center: [61.0, 70.0],
+    zoom: 3,
+    zoomControl: true,
+    scrollWheelZoom: true,
+    worldCopyJump: true
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  }).addTo(mapInstance);
+
+  const forestsLayer = L.layerGroup().addTo(mapInstance);
+  const burnsLayer = L.layerGroup().addTo(mapInstance);
+
+  sites.forEach(s => {
+    const isBurn = s.type === "burn";
+    const color = isBurn ? "#f0a868" : "#52b788";
+
+    const circle = L.circle([s.lat, s.lon], {
+      radius: 15000,
+      color: color,
+      weight: 1.5,
+      fillColor: color,
+      fillOpacity: 0.12,
+      opacity: 0.85
+    });
+    circle.bindTooltip(s.name, {direction: "top"});
+
+    const iconHtml = `
+      <div style="
+        width:26px;height:26px;border-radius:50% 50% 50% 0;
+        transform:rotate(-45deg);
+        background:${color};
+        border:2px solid #ffffff;
+        box-shadow:0 3px 10px rgba(15,32,39,.4);
+        display:flex;align-items:center;justify-content:center;
+      ">
+        <span style="transform:rotate(45deg);font-size:12px;">${s.icon}</span>
+      </div>`;
+    const icon = L.divIcon({
+      html: iconHtml,
+      className: "cv-leaflet-marker",
+      iconSize: [26, 26],
+      iconAnchor: [13, 26],
+      popupAnchor: [0, -26],
+      tooltipAnchor: [0, -22]
+    });
+
+    const marker = L.marker([s.lat, s.lon], {icon})
+      .bindPopup(popupHtml(s), {maxWidth: 320})
+      .bindTooltip(`${s.name} · ${s.region}`, {direction: "top", offset: [0, -18]})
+      .on("click", () => selectSite(s.id));
+
+    (isBurn ? burnsLayer : forestsLayer).addLayer(circle);
+    (isBurn ? burnsLayer : forestsLayer).addLayer(marker);
+    markers[s.id] = marker;
+  });
+
+  L.control.layers(
+    {"🗺️ Подложка": null},
+    {
+      "🌲 Лесные участки": forestsLayer,
+      "🔥 Нарушенные территории": burnsLayer
+    },
+    {collapsed: false, position: "topright"}
+  ).addTo(mapInstance);
+
+  L.control.scale({imperial: false, position: "bottomleft"}).addTo(mapInstance);
+
+  return mapInstance;
+}
+
+function refreshMapMarkers(){
+  const visible = new Set(visibleSites().map(s => s.id));
+  sites.forEach(s => {
+    const m = markers[s.id];
+    if(!m) return;
+    if(visible.has(s.id)){
+      if(!mapInstance.hasLayer(m)) m.addTo(mapInstance);
+    } else {
+      if(mapInstance.hasLayer(m)) mapInstance.removeLayer(m);
+    }
+  });
+}
+
+function focusSite(id){
+  const s = sites.find(x => x.id === id);
+  if(!s || !mapInstance) return;
+  mapInstance.setView([s.lat, s.lon], 6, {animate: true});
+  const m = markers[id];
+  if(m){
+    m.openPopup();
+  }
+}
+
+function renderSites(){
+ const list=visibleSites();
+ $("siteList").innerHTML=list.map(s=>`
+ <button class="site ${s.id===selectedId?"active":""}" data-site="${s.id}" type="button">
+  <span class="site-symbol">${s.icon}</span>
+  <span class="site-copy"><strong>${s.name}</strong><small>${s.region}</small></span>
+  <span class="site-area"><strong>${fmt(s.area,2)}</strong><small>га</small></span>
+ </button>`).join("");
+ $("mapCount").textContent=list.length+" участков";
+ $("selectedCount").textContent=list.length+" объектов";
+ $("listArea").textContent=fmt(list.reduce((a,s)=>a+s.area,0),2)+" га";
+ $("siteList").querySelectorAll("[data-site]").forEach(btn=>{
+   btn.addEventListener("click",()=>selectSite(btn.dataset.site));
+ });
+ refreshMapMarkers();
+}
+function renderProjects(){
+ const type=$("projectFilter").value;
+ const list=sites.filter(s=>type==="all"||s.type===type);
+ $("projectGrid").innerHTML=list.map(s=>`
+ <article class="card project-card">
+  <div class="project-top"><span style="font-size:22px">${s.icon}</span><span class="tag ${s.type==="burn"?"orange":""}">${s.type==="burn"?"Восстановление":"Лесной массив"}</span></div>
+  <h3>${s.name}</h3><p>${s.region}</p>
+  <div class="project-metrics">
+   <div><small>Площадь</small><strong>${fmt(s.area,2)} га</strong></div>
+   <div><small>Поглощение (демо)</small><strong>${fmt(s.absorption,1)} т/га/год</strong></div>
+  </div>
+  <button class="project-link" data-open="${s.id}">Изучить участок ↗</button>
+ </article>`).join("");
+ $("projectGrid").querySelectorAll("[data-open]").forEach(btn=>{
+  btn.addEventListener("click",()=>openSite(btn.dataset.open));
+ });
+}
+function standLabel(s){
+  return s.stand==="conifer"?"Хвойный":s.stand==="mixed"?"Смешанный":s.stand==="burn"?"Гарь":"—";
+}
+function renderPassport(){
+ const s=selected();
+ const unitsPerHa = s.absorption*years;
+ const rows=[
+   ["Название",s.name],
+   ["Регион",s.region],
+   ["Площадь",fmt(s.area,2)+" га"],
+   ["Тип территории",s.status],
+   ["Тип древостоя",standLabel(s)],
+   ["Метод","IPCC 2006, stock-difference, CF = 0.47"],
+   ["Поглощение (демо)",fmt(s.absorption,2)+" т CO₂/га/год"],
+   ["УЕ с 1 га за "+years+" лет (демо)",fmt(unitsPerHa,1)+" УЕ"],
+   ["Запас биомассы","Требует ESA CCI Biomass v7.0"],
+   ["Изменение запаса углерода","ΔC = ΔB × CF; ΔCO₂ = ΔC × 44/12"],
+   ["Верифицированные единицы","Нет подтверждённых данных"]
+ ];
+ $("passportBody").innerHTML=rows.map(r=>`<tr><td style="color:var(--muted)">${r[0]}</td><td><strong>${r[1]}</strong></td></tr>`).join("");
+ $("passportTag").textContent=s.type==="burn"?"Нарушенная территория":"Лесной массив";
+}
+function selectSite(id){
+ const s=sites.find(x=>x.id===id);if(!s)return;
+ selectedId=id;
+ $("areaRange").value=s.area;
+ $("absorption").value=s.absorption;
+ renderSites();renderProjects();renderPassport();renderCalculator();drawChart();
+ $("chartSubtitle").textContent=s.name+" · сценарная визуализация";
+ focusSite(id);
+}
+
+function renderCalculator(){
+ const area=Math.max(0,Number($("areaRange").value)||0);
+ const rate=Math.max(0,Number($("rateRange").value)||0);
+ const absorption=Math.max(0,Math.min(50,Number($("absorption").value)||0));
+
+ const gross=area*absorption*years;
+ const afterReserve=gross*0.85;
+
+ const fee=registryFeePerUnit(afterReserve);
+ const totalRegistryFee = afterReserve*fee.deposit + afterReserve*fee.transfer + afterReserve*fee.offset;
+ const cleanRevenue = afterReserve*rate - totalRegistryFee;
+
+ const cost = COSTS[scenario];
+ const totalCostMin = area*cost.min;
+ const totalCostMax = area*cost.max;
+ const coverageRatio = cleanRevenue / ((totalCostMin+totalCostMax)/2);
+
+ $("areaOutput").textContent=fmt(area,2)+" га";
+ $("rateOutput").textContent=fmt(rate)+" ₽";
+ $("revenue").textContent=money(gross*rate);
+ $("unitCount").textContent="Модельный объём до резерва: "+fmt(gross,2)+" т CO₂-экв.";
+ $("netRevenue").textContent=money(afterReserve*rate);
+ $("netUnits").textContent=fmt(afterReserve,2)+" т CO₂-экв.";
+ $("statIncome").textContent=money(Math.max(0,cleanRevenue));
+
+ $("pbScenario").textContent="сценарий "+scenario+" · "+cost.label;
+ $("costPerHa").textContent=fmt(cost.min)+"–"+fmt(cost.max)+" ₽/га";
+ $("totalCost").textContent=fmt(totalCostMin)+"–"+fmt(totalCostMax)+" ₽";
+ $("registryFee").textContent=fmt(totalRegistryFee)+" ₽";
+ $("cleanRevenue").textContent=money(Math.max(0,cleanRevenue));
+ $("coverage").textContent=fmt(Math.max(0,coverageRatio*100),1)+"%";
+ $("cleanRevenue").style.color = cleanRevenue>0 ? "#e6f5d7" : "#ffb7a6";
+ $("coverage").style.color = coverageRatio>=1 ? "#c9f0b7" : "#ffb7a6";
+
+ const v=$("verdict"), vt=$("verdictText"), vs=$("verdictSub");
+ if(coverageRatio>=1){
+   v.className="verdict good";
+   vt.textContent="ОКУПАЕТСЯ";
+   vs.textContent="Чистая выручка покрывает полные затраты. Требуется независимая верификация и подтверждение права выпуска.";
+ }else{
+   v.className="verdict bad";
+   vt.textContent="НЕ ОКУПАЕТСЯ";
+   vs.textContent="Покрыто "+fmt(Math.max(0,coverageRatio*100),1)+"% затрат. Разрыв с текущей ценой — в разы.";
+ }
+
+ const t=THRESHOLD[scenario][years];
+ $("thresholdPrice").textContent=fmt(t[0])+"–"+fmt(t[1])+" ₽/УЕ";
+ const gap = Math.max(1, Math.round(t[0]/Math.max(1,rate)));
+ $("thresholdHint").textContent="Текущая цена: "+fmt(rate)+" ₽/УЕ. Разрыв: в "+gap+" раз(а).";
+
+ const markerPct = Math.min(100, Math.max(0, (rate/25000)*100));
+ $("gapMarker").style.left = markerPct+"%";
+
+ const note=$("reestrNote");
+ const volLabel = afterReserve<10000?"до 10 тыс.":afterReserve<500000?"10–500 тыс.":afterReserve<3000000?"500 тыс.–3 млн":"от 3 млн";
+ note.textContent = "Тарифы реестра (Постановление № 518, объём "+volLabel+" УЕ): "+
+   "зачисление "+fee.deposit+" ₽/УЕ, передача "+fee.transfer+" ₽/УЕ, зачёт "+fee.offset+" ₽/УЕ. "+
+   "Итого комиссия: "+fmt(totalRegistryFee)+" ₽. С 01.03.2027 — единый счёт резервирования (Постановление № 790).";
+}
+
+function drawChart(){
+ const canvas=$("carbonChart");
+ const rect=canvas.getBoundingClientRect();
+ if(rect.width<1||rect.height<1)return;
+ const dpr=window.devicePixelRatio||1;
+ canvas.width=Math.round(rect.width*dpr);
+ canvas.height=Math.round(rect.height*dpr);
+ const ctx=canvas.getContext("2d");
+ ctx.scale(dpr,dpr);
+ const w=rect.width,h=rect.height;
+ const pad={l:43,r:12,t:16,b:29};
+ const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+ ctx.clearRect(0,0,w,h);
+ const s=selected();
+ const base=s.type==="burn"?35:80;
+ const growth=s.type==="burn"?0.85:0.35;
+ const n=period;
+ const data=Array.from({length:n+1},(_,i)=>({x:i,y:base+growth*i+Math.sin(i*0.8)*0.12}));
+ const max=Math.ceil((base+growth*n+8)/10)*10;
+ const min=Math.floor((base-5)/10)*10;
+ const x=i=>pad.l+cw*i/n;
+ const y=v=>pad.t+ch-(v-min)/(max-min)*ch;
+ ctx.font="10px sans-serif";
+ ctx.textAlign="right";ctx.textBaseline="middle";
+ for(let v=min;v<=max;v+=5){
+  ctx.strokeStyle="#e9eee7";ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(pad.l,y(v));ctx.lineTo(w-pad.r,y(v));ctx.stroke();
+  ctx.fillStyle="#89968b";ctx.fillText(v.toFixed(0),pad.l-8,y(v));
+ }
+ ctx.textAlign="center";ctx.textBaseline="top";
+ const step=Math.max(1,Math.ceil(n/5));
+ for(let i=0;i<=n;i+=step){
+  ctx.fillStyle="#89968b";ctx.fillText(String(2024+i),x(i),h-pad.b+9);
+ }
+ ctx.beginPath();ctx.moveTo(x(0),y(base));
+ ctx.lineTo(x(n),y(base));ctx.setLineDash([4,4]);ctx.strokeStyle="#b4c1b0";ctx.lineWidth=1.5;ctx.stroke();ctx.setLineDash([]);
+ ctx.beginPath();
+ data.forEach((p,i)=>i?ctx.lineTo(x(i),y(p.y)):ctx.moveTo(x(i),y(p.y)));
+ ctx.lineTo(x(n),h-pad.b);ctx.lineTo(x(0),h-pad.b);ctx.closePath();
+ ctx.fillStyle="rgba(47,110,72,.09)";ctx.fill();
+ ctx.beginPath();
+ data.forEach((p,i)=>i?ctx.lineTo(x(i),y(p.y)):ctx.moveTo(x(i),y(p.y)));
+ ctx.strokeStyle="#286448";ctx.lineWidth=2.5;ctx.lineJoin="round";ctx.stroke();
+ data.forEach((p,i)=>{
+  ctx.beginPath();ctx.arc(x(i),y(p.y),3,0,Math.PI*2);
+  ctx.fillStyle="#fff";ctx.fill();ctx.strokeStyle="#286448";ctx.lineWidth=2;ctx.stroke();
+ });
+}
+
+function openSite(id){
+ const s=sites.find(x=>x.id===id);if(!s)return;
+ $("modalTitle").textContent=s.name;
+ $("modalDescription").textContent=s.region+" · "+s.note;
+ $("modalGrid").innerHTML=[
+   ["Площадь",fmt(s.area,2)+" га"],
+   ["Тип",s.status],
+   ["Тип древостоя",standLabel(s)],
+   ["Поглощение (демо)",fmt(s.absorption,2)+" т CO₂/га/год"],
+   ["УЕ с 1 га за 10 лет (демо)",fmt(s.absorption*10,1)+" УЕ"],
+   ["Статус верификации","Не подтверждён"]
+ ].map(a=>`<div class="modal-item"><small>${a[0]}</small><strong class="demo">${a[1]}</strong></div>`).join("");
+ $("modalSelect").dataset.id=id;
+ $("modalBackdrop").classList.add("open");
+ $("closeModal").focus();
+}
+function closeModal(){$("modalBackdrop").classList.remove("open")}
+
+function exportReport(){
+ const s=selected();
+ const area=Number($("areaRange").value)||0;
+ const absorption=Math.max(0,Math.min(50,Number($("absorption").value)||0));
+ const rate=Number($("rateRange").value)||0;
+ const units=area*absorption*years;
+ const afterReserve=units*0.85;
+
+ const fee=registryFeePerUnit(afterReserve);
+ const totalRegistryFee = afterReserve*fee.deposit + afterReserve*fee.transfer + afterReserve*fee.offset;
+ const cleanRevenue = afterReserve*rate - totalRegistryFee;
+ const cost = COSTS[scenario];
+ const costMin=area*cost.min, costMax=area*cost.max;
+ const coverage=(cleanRevenue/((costMin+costMax)/2))*100;
+ const t=THRESHOLD[scenario][years];
+
+ const report=[
+ "CARBONVISION — ДЕМОНСТРАЦИОННЫЙ ОТЧЁТ",
+ "Дата формирования: "+new Date().toLocaleDateString("ru-RU"),
+ "",
+ "Участок: "+s.name,
+ "Регион: "+s.region,
+ "Тип древостоя: "+standLabel(s),
+ "Площадь: "+fmt(area,2)+" га",
+ "Горизонт: "+years+" лет",
+ "Сценарий участка: "+scenario+" ("+cost.label+")",
+ "Сценарный параметр (демо): "+fmt(absorption,2)+" т CO2/га/год",
+ "Цена сценария: "+fmt(rate)+" руб./УЕ",
+ "",
+ "РАСЧЁТ ОБЪЁМА:",
+ "Условный объём до резерва: "+fmt(units,2)+" т CO2-экв.",
+ "Условный объём после резерва 15%: "+fmt(afterReserve,2)+" т CO2-экв.",
+ "",
+ "ЭКОНОМИКА:",
+ "Валовая сценарная выручка: "+money(units*rate),
+ "Комиссия реестра (Пост. № 518): "+money(totalRegistryFee),
+ "Чистая выручка после комиссий: "+money(Math.max(0,cleanRevenue)),
+ "Затраты на 1 га: "+fmt(cost.min)+"–"+fmt(cost.max)+" руб./га",
+ "Полные затраты проекта: "+fmt(costMin)+"–"+fmt(costMax)+" руб.",
+ "Покрытие затрат: "+fmt(Math.max(0,coverage),1)+"%",
+ "Вердикт: "+(coverage>=100?"ОКУПАЕТСЯ":"НЕ ОКУПАЕТСЯ"),
+ "",
+ "ПОРОГОВАЯ ЦЕНА ДЛЯ ОКУПАЕМОСТИ (Таблица 4 статьи):",
+ "Диапазон: "+fmt(t[0])+"–"+fmt(t[1])+" руб./УЕ за "+years+" лет",
+ "",
+ "ОГРАНИЧЕНИЕ:",
+ "Расчёт является учебной моделью. Он не подтверждает фактическое",
+ "поглощение, дополнительность, право выпуска углеродных единиц,",
+ "сертификацию проекта или возможность продажи.",
+ "По данным исследования (Нагайцева, Надбитова, 2026), при текущей",
+ "рыночной цене 500–1 000 руб./УЕ лесоклиматический проект НЕ ОКУПАЕТСЯ",
+ "ни за 5, ни за 10, ни за 15 лет. Для окупаемости за 15 лет цена",
+ "должна составлять 4 500–6 500 руб./УЕ (чистый участок) или",
+ "19 400–25 600 руб./УЕ (захламлённый). Разрыв — в 5–77 раз.",
+ "Не учтены налоги и риск потери биомассы."
+ ].join("\r\n");
+ const blob=new Blob(["\ufeff"+report],{type:"text/plain;charset=utf-8"});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url;a.download="CarbonVision-report.txt";
+ document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+ showToast("Отчёт сформирован в формате TXT.");
+}
+
+function resetAll(){
+ $("regionFilter").value="all";$("projectFilter").value="all";
+ $("rateRange").value="1000";$("absorption").value="1.5";
+ years=10;period=5;scenario="A";
+ document.querySelectorAll("[data-years]").forEach(b=>b.classList.toggle("active",b.dataset.years==="10"));
+ document.querySelectorAll("[data-period]").forEach(b=>b.classList.toggle("active",b.dataset.period==="5"));
+ document.querySelectorAll("[data-scenario]").forEach(b=>b.classList.toggle("active",b.dataset.scenario==="A"));
+ selectSite("ark");renderStats();
+ showToast("Параметры демонстрации сброшены.");
+}
+function renderStats(){
+ $("statCount").textContent=sites.length;
+ $("statArea").textContent=fmt(sites.reduce((a,s)=>a+s.area,0),2);
+ $("statCarbon").textContent="—";
+ $("statIncome").textContent="—";
+}
+function applyFilters(){
+ const list=visibleSites();
+ if(!list.some(s=>s.id===selectedId)&&list.length)selectSite(list[0].id);
+ else{renderSites();renderProjects()}
+}
+
+$("regionFilter").addEventListener("change",applyFilters);
+$("projectFilter").addEventListener("change",renderProjects);
+$("areaRange").addEventListener("input",renderCalculator);
+$("rateRange").addEventListener("input",renderCalculator);
+$("absorption").addEventListener("input",renderCalculator);
+$("periodSegment").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+ period=Number(b.dataset.period);
+ $("periodSegment").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
+ drawChart();
+}));
+$("years").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+ years=Number(b.dataset.years);
+ $("years").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
+ renderPassport();
+ renderCalculator();
+}));
+$("scenarioSegment").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+ scenario=b.dataset.scenario;
+ $("scenarioSegment").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
+ renderCalculator();
+}));
+$("exportBtn").addEventListener("click",exportReport);
+$("resetBtn").addEventListener("click",resetAll);
+$("helpBtn").addEventListener("click",()=>showToast("CarbonVision — демонстрационная аналитическая платформа, а не официальный реестр углеродных единиц."));
+$("menuBtn").addEventListener("click",()=>$("sidebar").classList.toggle("open"));
+$("sidebar").querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>$("sidebar").classList.remove("open")));
+$("closeModal").addEventListener("click",closeModal);
+$("modalBackdrop").addEventListener("click",e=>{if(e.target===$("modalBackdrop"))closeModal()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();$("sidebar").classList.remove("open")}});
+$("modalSelect").addEventListener("click",()=>{selectSite($("modalSelect").dataset.id);closeModal();$("calculator").scrollIntoView({behavior:"smooth",block:"start"})});
+window.addEventListener("resize",()=>{drawChart(); if(mapInstance) mapInstance.invalidateSize();});
+
+const cvObserver=new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting){
+      entry.target.style.opacity="1";
+      entry.target.style.transform="translateY(0)";
+    }
+  });
+},{threshold:0.08});
+document.querySelectorAll(".stat, .project-card, .contact-card").forEach(el=>{
+  if(el.dataset.cvAnim) return;
+  el.dataset.cvAnim="1";
+  el.style.opacity="0";
+  el.style.transform="translateY(14px)";
+  el.style.transition="opacity .55s ease, transform .55s ease";
+  cvObserver.observe(el);
+});
+
+(function mountUpButton(){
+  if(document.getElementById("cvUpBtn")) return;
+  const btn=document.createElement("button");
+  btn.id="cvUpBtn";
+  btn.innerHTML="↑";
+  btn.setAttribute("aria-label","Наверх");
+  btn.style.cssText=`
+    position:fixed;bottom:30px;right:30px;width:50px;height:50px;
+    border-radius:50%;background:linear-gradient(135deg,#52b788,#95d5b2);
+    color:#081c15;border:none;font-size:1.5rem;font-weight:800;cursor:pointer;
+    box-shadow:0 6px 20px rgba(82,183,136,.5);
+    opacity:0;transition:opacity .3s ease, transform .3s ease;z-index:999;
+    pointer-events:none;
+  `;
+  document.body.appendChild(btn);
+  window.addEventListener("scroll",()=>{
+    const show=window.scrollY>400;
+    btn.style.opacity=show?"1":"0";
+    btn.style.transform=show?"translateY(0)":"translateY(20px)";
+    btn.style.pointerEvents=show?"auto":"none";
+  });
+  btn.addEventListener("click",()=>window.scrollTo({top:0,behavior:"smooth"}));
+})();
+
+renderStats();
+renderSites();
+renderProjects();
+renderPassport();
+renderCalculator();
+drawChart();
+$("chartSubtitle").textContent=selected().name+" · сценарная визуализация";
+
+try{
+  initMap();
+  setTimeout(()=>{ if(mapInstance) mapInstance.invalidateSize(); }, 200);
+}catch(err){
+  console.error("Ошибка инициализации карты:", err);
+  showToast("Не удалось загрузить карту. Проверьте подключение к интернету (Leaflet CDN).");
+}
+</script>
+</body>
+</html>
